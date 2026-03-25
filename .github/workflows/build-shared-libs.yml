@@ -1,0 +1,110 @@
+name: Build Shared Libraries
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release
+
+jobs:
+
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link shared library
+        run: |
+          g++ -shared -o libbls_eth.so \
+            -Wl,--whole-archive bls/lib/linux/amd64/libbls384_256.a -Wl,--no-whole-archive \
+            -lstdc++
+          readelf -d libbls_eth.so | grep NEEDED
+          nm -D libbls_eth.so | grep -c bls
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bls-eth-linux-x64
+          path: libbls_eth.so
+
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link shared library
+        run: |
+          g++ -shared -o libbls_eth.so \
+            -Wl,--whole-archive bls/lib/linux/arm64/libbls384_256.a -Wl,--no-whole-archive \
+            -lstdc++
+          readelf -d libbls_eth.so | grep NEEDED
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bls-eth-linux-arm64
+          path: libbls_eth.so
+
+  build-osx-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link shared library
+        run: |
+          clang++ -shared -o libbls_eth.dylib \
+            -Wl,-all_load bls/lib/darwin/arm64/libbls384_256.a \
+            -lstdc++
+          install_name_tool -id @rpath/libbls_eth.dylib libbls_eth.dylib
+          otool -L libbls_eth.dylib
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bls-eth-osx-arm64
+          path: libbls_eth.dylib
+
+  build-osx-x64:
+    runs-on: macos-15-large
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link shared library
+        run: |
+          clang++ -shared -o libbls_eth.dylib \
+            -Wl,-all_load bls/lib/darwin/amd64/libbls384_256.a \
+            -lstdc++
+          install_name_tool -id @rpath/libbls_eth.dylib libbls_eth.dylib
+          otool -L libbls_eth.dylib
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bls-eth-osx-x64
+          path: libbls_eth.dylib
+
+  build-windows-x64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+      - name: Link shared library
+        run: |
+          g++ -shared -static-libgcc -static-libstdc++ -o bls_eth.dll \
+            -Wl,--whole-archive bls/lib/windows/amd64/libbls384_256.a -Wl,--no-whole-archive
+          objdump -p bls_eth.dll | grep "DLL Name"
+          objdump -p bls_eth.dll | grep bls | head -10
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bls-eth-win-x64
+          path: bls_eth.dll
+
+  build-android-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link shared library
+        run: |
+          NDK_ROOT="${ANDROID_NDK_LATEST_HOME}"
+          CXX="${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++"
+          $CXX -shared -static-libstdc++ -o libbls_eth.so \
+            -Wl,--whole-archive bls/lib/android/arm64-v8a/libbls384_256.a -Wl,--no-whole-archive
+          readelf -d libbls_eth.so | grep NEEDED
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bls-eth-android-arm64
+          path: libbls_eth.so
