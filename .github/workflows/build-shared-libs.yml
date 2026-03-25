@@ -56,7 +56,7 @@ jobs:
           path: libbls_eth.dylib
 
   build-osx-x64:
-    runs-on: macos-15-large
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
       - name: Link shared library
